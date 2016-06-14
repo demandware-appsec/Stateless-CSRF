@@ -35,6 +35,7 @@ public class CSRFFilter
 ```
 
 ## Using a custom CSRFErrorHandler
+### Subclass CSRFErrorHandler
 ```java
 public class LoggingCSRFErrorHandler
     extends CSRFErrorHandler
@@ -68,4 +69,9 @@ public class LoggingCSRFErrorHandler
         throw new RuntimeException( message, e );
     }
 }
+```
+### Instantiate and assign to the Manager
+```java
+CSRFTokenManager csrfTokenManager = new CSRFTokenManager();
+csrfTokenManager.setErrorHandler( new LoggingCSRFErrorHandler( LogManager.getLogger(), LogManager.getLogger( "SecurityLog" ) )
 ```
