@@ -1,5 +1,4 @@
 # Stateless CSRF Token Management
-#### Demandware Inc, 2016
 
 ## Code Status
 [![Build Status](https://travis-ci.org/demandware-appsec/Stateless-CSRF.svg?branch=master)](https://travis-ci.org/demandware-appsec/Stateless-CSRF)
@@ -74,4 +73,5 @@ For code examples on using the library, please see [Examples](./EXAMPLES.md)
 Included is a set of JUnit tests that cover ~95% of instructions in the library.
 
 ## License
+Copyright 2016  Demandware Inc, All Rights Reserved.
 [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0.txt)
