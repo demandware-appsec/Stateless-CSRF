@@ -8,13 +8,13 @@
  */
 package com.demandware.appsec.csrf;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import java.security.SecureRandom;
-import java.time.Clock;
-import java.time.Duration;
-import java.time.Instant;
-import java.time.ZoneId;
 import java.util.Arrays;
 
 import org.junit.Before;
@@ -24,7 +24,7 @@ import org.junit.rules.ExpectedException;
 
 public class _CSRFTokenManager
 {
-    private CSRFTokenManager csrfMgrExceptions;
+    private CSRFTokenManager csrfMgrDefault;
 
     private CSRFTokenManager csrfMgrLogs;
 
@@ -38,13 +38,16 @@ public class _CSRFTokenManager
     @Before
     public void setUp()
     {
-        this.csrfMgrExceptions = new CSRFTokenManager();
+        // this mgr throws exceptions
+        this.csrfMgrDefault = new CSRFTokenManager();
+        // this logs to custom logger
         this.csrfMgrLogs = new CSRFTokenManager();
+        // the custom logger
         this.csrfHandler = new CSRFHandlerLog();
         this.csrfMgrLogs.setErrorHandler( csrfHandler );
     }
 
-    class CSRFHandlerLog
+    static class CSRFHandlerLog
         extends CSRFErrorHandler
     {
         StringBuilder logger;
@@ -87,26 +90,97 @@ public class _CSRFTokenManager
         }
     }
 
+    // Default case. Test token generates and validates
     @Test
     public void testCorrectTokenGeneration()
     {
-        String tokenName = this.csrfMgrExceptions.getCSRFTokenName();
-        String tokenValue = this.csrfMgrExceptions.generateToken( SESSION_ID );
+        String tokenName = this.csrfMgrDefault.getCSRFTokenName();
+        String tokenValue = this.csrfMgrDefault.generateToken( SESSION_ID );
         assertNotNull( tokenName );
         assertNotNull( tokenValue );
 
-        assertTrue( this.csrfMgrExceptions.validateCSRFToken( tokenValue, SESSION_ID ) );
+        assertTrue( this.csrfMgrDefault.validateToken( tokenValue, SESSION_ID ) );
     }
 
+    // Extra data added to token, generate/validate
+    @Test
+    public void testCorrectTokenGenerationExtraData()
+    {
+        String[] additionalData = { "sometoken", "adifferenttoken" };
+        String tokenName = this.csrfMgrDefault.getCSRFTokenName();
+        String tokenValue = this.csrfMgrDefault.generateToken( SESSION_ID, additionalData );
+        assertNotNull( tokenName );
+        assertNotNull( tokenValue );
+
+        assertTrue( this.csrfMgrDefault.validateToken( tokenValue, SESSION_ID, additionalData ) );
+    }
+
+    // Extra data added to token, but validate is different extra data
+    @Test
+    public void testBadTokenGenerationWrongExtraData()
+    {
+        String[] additionalData = { "sometoken", "adifferenttoken" };
+        String[] wrongAdditionalData = { "sometoken", "nottherightdifferenttoken" };
+
+        String tokenName = this.csrfMgrDefault.getCSRFTokenName();
+        String tokenValue = this.csrfMgrDefault.generateToken( SESSION_ID, additionalData );
+        assertNotNull( tokenName );
+        assertNotNull( tokenValue );
+
+        assertFalse( this.csrfMgrDefault.validateToken( tokenValue, SESSION_ID, wrongAdditionalData ) );
+    }
+
+    // Extra data is null. Should generate and validate anyway
+    @Test
+    public void testCorrectTokenGenerationWithNullExtraData()
+    {
+        String[] additionalData = null;
+
+        String tokenName = this.csrfMgrDefault.getCSRFTokenName();
+        String tokenValue = this.csrfMgrDefault.generateToken( SESSION_ID, additionalData );
+        assertNotNull( tokenName );
+        assertNotNull( tokenValue );
+
+        assertTrue( this.csrfMgrDefault.validateToken( tokenValue, SESSION_ID, additionalData ) );
+    }
+
+    // generate with 2 extra data, validate with only one
+    @Test
+    public void testBadTokenGenerationWithDifferentAmountExtraData()
+    {
+        String[] additionalData = { "sometoken", "adifferenttoken" };
+        String[] wrongAdditionalData = { "sometoken" };
+
+        String tokenName = this.csrfMgrDefault.getCSRFTokenName();
+        String tokenValue = this.csrfMgrDefault.generateToken( SESSION_ID, additionalData );
+        assertNotNull( tokenName );
+        assertNotNull( tokenValue );
+
+        assertFalse( this.csrfMgrDefault.validateToken( tokenValue, SESSION_ID, wrongAdditionalData ) );
+    }
+
+    // generate with no extra data, validate with extra data
+    @Test
+    public void testBadTokenGenerationWithDifferentAmountExtraDataValidation()
+    {
+        String[] additionalData = { "sometoken", "adifferenttoken" };
+
+        String tokenName = this.csrfMgrDefault.getCSRFTokenName();
+        String tokenValue = this.csrfMgrDefault.generateToken( SESSION_ID );
+        assertNotNull( tokenName );
+        assertNotNull( tokenValue );
+
+        assertFalse( this.csrfMgrDefault.validateToken( tokenValue, SESSION_ID, additionalData ) );
+    }
+
+    // change setter/getters for expiration, clock, and token name
     @Test
     public void testDifferentDefaults()
     {
         long expiry = 10000000L;
         String name = "foobar";
 
-        Clock clk = Clock.systemUTC();
-
-        CSRFTokenManager mgr = new CSRFTokenManager( null, clk );
+        CSRFTokenManager mgr = new CSRFTokenManager( null );
         mgr.setAllowedExpiry( expiry );
         mgr.setCSRFTokenName( name );
 
@@ -116,12 +190,10 @@ public class _CSRFTokenManager
 
         String tokenValue = mgr.generateToken( SESSION_ID );
 
-        clk = Clock.offset( clk, Duration.ofSeconds( this.csrfMgrExceptions.getAllowedExpiry() ) );
-
-        assertTrue( mgr.validateCSRFToken( tokenValue, SESSION_ID ) );
-
+        assertTrue( mgr.validateToken( tokenValue, SESSION_ID ) );
     }
 
+    // with static SR, still get different tokens, if SR and time stop, generate same token
     @Test
     public void testWithBrokenRandoms()
         throws InterruptedException
@@ -140,14 +212,23 @@ public class _CSRFTokenManager
 
         String token1 = new CSRFTokenManager( badRand ).generateToken( SESSION_ID );
         Thread.sleep( 100L );
-        Clock clk = Clock.fixed( Instant.now(), ZoneId.systemDefault() );
-        String token2 = new CSRFTokenManager( badRand, clk ).generateToken( SESSION_ID );
-        String token3 = new CSRFTokenManager( badRand, clk ).generateToken( SESSION_ID );
+        
+        final long now = System.currentTimeMillis();
+        
+        CSRFTokenManager frozenInTime = new CSRFTokenManager( badRand){
+          protected long getCurrentTime(){
+              return now;
+          }
+        };
+        
+        String token2 = frozenInTime.generateToken( SESSION_ID );
+        String token3 = frozenInTime.generateToken( SESSION_ID );
 
         assertFalse( token1.equals( token2 ) );
         assertEquals( token2, token3 );
     }
 
+    // null check for error handler
     @Test
     public void testBadHandler()
     {
@@ -155,6 +236,7 @@ public class _CSRFTokenManager
         new CSRFTokenManager().setErrorHandler( null );
     }
 
+    // negative expiration check for expiry
     @Test
     public void testBadExpiry()
     {
@@ -162,19 +244,21 @@ public class _CSRFTokenManager
         new CSRFTokenManager().setAllowedExpiry( -1L );
     }
 
+    // null check for token name
     @Test
     public void testBadTokenName()
     {
         this.exception.expect( IllegalArgumentException.class );
         new CSRFTokenManager().setCSRFTokenName( null );
     }
-    
+
+    // null check for null session
     @Test
     public void testBadSessionValidate()
     {
         this.exception.expect( IllegalArgumentException.class );
         CSRFTokenManager mgr = new CSRFTokenManager();
-        mgr.validateCSRFToken( mgr.generateToken( SESSION_ID ), null );
+        mgr.validateToken( mgr.generateToken( SESSION_ID ), null );
     }
 
     //////////////////
@@ -185,19 +269,19 @@ public class _CSRFTokenManager
     public void testNullSessionIDDefault()
     {
         this.exception.expect( IllegalArgumentException.class );
-        this.csrfMgrExceptions.generateToken( null );
+        this.csrfMgrDefault.generateToken( null );
     }
 
     @Test
     public void testEmptySessionIDDefault()
     {
-        assertNull( this.csrfMgrExceptions.generateToken( "" ) );
+        assertNull( this.csrfMgrDefault.generateToken( "" ) );
     }
 
     @Test
     public void testShortSessionIDDefault()
     {
-        assertNull( this.csrfMgrExceptions.generateToken( "a" ) );
+        assertNull( this.csrfMgrDefault.generateToken( "a" ) );
     }
 
     @Test
@@ -216,19 +300,19 @@ public class _CSRFTokenManager
 
         Thread.sleep( 50L ); // wait a significant time after expiry
 
-        assertFalse( curmgr.validateCSRFToken( tokenValue, SESSION_ID ) );
+        assertFalse( curmgr.validateToken( tokenValue, SESSION_ID ) );
     }
 
     @Test
     public void testInvalidTokensDefault()
     {
-        String tokenName = this.csrfMgrExceptions.getCSRFTokenName();
-        String tokenValue = this.csrfMgrExceptions.generateToken( SESSION_ID );
+        String tokenName = this.csrfMgrDefault.getCSRFTokenName();
+        String tokenValue = this.csrfMgrDefault.generateToken( SESSION_ID );
         String originalValue = tokenValue;
         assertNotNull( tokenName );
         assertNotNull( tokenValue );
 
-        assertTrue( this.csrfMgrExceptions.validateCSRFToken( tokenValue, SESSION_ID ) );
+        assertTrue( this.csrfMgrDefault.validateToken( tokenValue, SESSION_ID ) );
 
         //@formatter:off
         String[] invalid = 
@@ -240,21 +324,28 @@ public class _CSRFTokenManager
                         "|",
                         originalValue.replace( "|", "||" ),
                         null,
-                        this.csrfMgrExceptions.generateToken( SESSION_ID+"|a" )
+                        this.csrfMgrDefault.generateToken( SESSION_ID+"|a" )
                     };
         //@formatter:on
 
         for ( String bad : invalid )
         {
-            assertFalse( this.csrfMgrExceptions.validateCSRFToken( bad, SESSION_ID ) );
+            try
+            {
+                assertFalse( this.csrfMgrDefault.validateToken( bad, SESSION_ID ) );
+            }
+            catch ( SecurityException e )
+            {
+                // ok
+            }
         }
     }
 
     @Test
     public void testDifferentSessionInvalidDefault()
     {
-        String tokenName = this.csrfMgrExceptions.getCSRFTokenName();
-        String tokenValue = this.csrfMgrExceptions.generateToken( SESSION_ID );
+        String tokenName = this.csrfMgrDefault.getCSRFTokenName();
+        String tokenValue = this.csrfMgrDefault.generateToken( SESSION_ID );
 
         char old = SESSION_ID.charAt( SESSION_ID.length() - 1 );
         String sessionid = SESSION_ID.substring( 0, SESSION_ID.length() - 1 ) + ( old + 1 );
@@ -262,7 +353,7 @@ public class _CSRFTokenManager
         assertNotNull( tokenName );
         assertNotNull( tokenValue );
 
-        assertFalse( this.csrfMgrExceptions.validateCSRFToken( tokenValue, sessionid ) );
+        assertFalse( this.csrfMgrDefault.validateToken( tokenValue, sessionid ) );
     }
 
     //////////////////
@@ -307,7 +398,7 @@ public class _CSRFTokenManager
 
         Thread.sleep( 50L ); // wait a significant time after expiry
 
-        assertFalse( mgr.validateCSRFToken( tokenValue, SESSION_ID ) );
+        assertFalse( mgr.validateToken( tokenValue, SESSION_ID ) );
         assertTrue( csrfHandler.getString().contains( "expired" ) );
 
     }
@@ -322,7 +413,7 @@ public class _CSRFTokenManager
         assertNotNull( tokenName );
         assertNotNull( tokenValue );
 
-        assertTrue( this.csrfMgrLogs.validateCSRFToken( tokenValue, SESSION_ID ) );
+        assertTrue( this.csrfMgrLogs.validateToken( tokenValue, SESSION_ID ) );
 
         //@formatter:off
         String[] invalid = 
@@ -340,7 +431,7 @@ public class _CSRFTokenManager
 
         for ( String bad : invalid )
         {
-            assertFalse( this.csrfMgrLogs.validateCSRFToken( bad, SESSION_ID ) );
+            assertFalse( this.csrfMgrLogs.validateToken( bad, SESSION_ID ) );
         }
     }
 
@@ -357,7 +448,7 @@ public class _CSRFTokenManager
         assertNotNull( tokenName );
         assertNotNull( tokenValue );
 
-        assertFalse( this.csrfMgrLogs.validateCSRFToken( tokenValue, sessionid ) );
+        assertFalse( this.csrfMgrLogs.validateToken( tokenValue, sessionid ) );
         assertTrue( this.csrfHandler.getString(), this.csrfHandler.getString().contains( "session ids don't match" ) );
     }
 }

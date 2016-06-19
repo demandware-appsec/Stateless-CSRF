@@ -34,7 +34,7 @@ import org.apache.commons.codec.binary.Hex;
  * application and validated wherever.
  * </p>
  * <p>
- * Tokens are generated in this manner: <br>
+ * In the default case, CSRF tokens are generated in this manner: <br>
  * <ol>
  * <li>Given a SessionID (must be at least 16 bytes long), first generate a TokenID from a {@linkplain SecureRandom}
  * </li>
@@ -45,7 +45,7 @@ import org.apache.commons.codec.binary.Hex;
  * </ol>
  * </p>
  * <p>
- * Tokens are validated in this manner: <br>
+ * In the default case, CSRF tokens are validated in this manner: <br>
  * <ol>
  * <li>Given a SessionID and a Token, first split the token into TokenID and encrypted text</li>
  * <li>Next, decrypt the encrypted text using the first 16 bytes of the SessionID as key and TokenID as IV</li>
@@ -53,6 +53,11 @@ import org.apache.commons.codec.binary.Hex;
  * <li>validate that the full SessionID matches the decrypted version (not just first 16 bytes)</li>
  * <li>validate that the timestamp is within the expiration time from now</li>
  * </ol>
+ * </p>
+ * <p>
+ * The generation and validation methods also allow application developers to specify further items to be encrypted (in
+ * addition to the sessionID and timestamp). These items are validated in their supplied order, so developers should
+ * take care to maintain the same order during validation as was used in generation.
  * </p>
  * <p>
  * <b>Note:</b> By default, a {@linkplain CSRFErrorHandler} is assigned to the Manager. This handler writes all data to
@@ -65,9 +70,9 @@ public class CSRFTokenManager
 {
 
     /*
-     * 60 minutes in milliseconds
+     * 30 minutes in milliseconds
      */
-    public static final long DEFAULT_EXPIRY = 60 * 60 * 1000;
+    public static final long DEFAULT_EXPIRY = 30 * 60 * 1000;
 
     public static final String DEFAULT_CSRF_TOKEN_NAME = "csrf_token";
 
@@ -99,11 +104,6 @@ public class CSRFTokenManager
     /////////////////////
 
     /*
-     * primarily used for testing purposes. Default is UTC clock
-     */
-    private final Clock time;
-
-    /*
      * a strong random to use to generate Token IDs to be used as IVs 
      */
     private SecureRandom random;
@@ -128,7 +128,7 @@ public class CSRFTokenManager
      */
     public CSRFTokenManager()
     {
-        this( null, null );
+        this( null );
     }
 
     /**
@@ -138,15 +138,6 @@ public class CSRFTokenManager
      */
     public CSRFTokenManager( SecureRandom random )
     {
-        this( random, null );
-    }
-
-    /**
-     * @param random
-     * @param clock
-     */
-    public CSRFTokenManager( SecureRandom random, Clock clock )
-    {
         if ( random == null )
         {
             this.random = new SecureRandom();
@@ -154,15 +145,6 @@ public class CSRFTokenManager
         else
         {
             this.random = random;
-        }
-
-        if ( clock == null )
-        {
-            this.time = Clock.systemUTC();
-        }
-        else
-        {
-            this.time = clock;
         }
 
         this.csrfTokenName = DEFAULT_CSRF_TOKEN_NAME;
@@ -227,7 +209,7 @@ public class CSRFTokenManager
     /**
      * Configure a new expiration time on tokens. This takes effect immediately on all outstanding tokens. e.g. if the
      * old expiry were 10 mins and the new expiry is 20 mins, all tokens generated 19 mins ago are now valid, even
-     * though they weren't before the expiration was reset
+     * though they weren't before the expiration was reset. 
      * 
      * @param expiry the new expiration time in milliseconds
      * @throws IllegalArgumentException if the expiration time is less that 0
@@ -244,13 +226,15 @@ public class CSRFTokenManager
     }
 
     /**
-     * Builds a secure token used to protect against CSRF attacks
+     * Builds a secure token used to protect against CSRF attacks. Additional data may be used to further lengthen the
+     * resulting token
      *
      * @param sessionID the sessionID of this request
+     * @param otherData (Optional) any other strings that should be used to generate the token. See class definition.
      * @return a new CSRF token value for this session
      * @throws IllegalArgumentException if the sessionID is null
      */
-    public String generateToken( String sessionID )
+    public String generateToken( String sessionID, String... otherData )
         throws IllegalArgumentException
     {
         if ( sessionID == null )
@@ -266,7 +250,7 @@ public class CSRFTokenManager
 
         String tokenId = generateID( TOKEN_SIZE );
 
-        String token = generateToken( tokenId, sessionID );
+        String token = generateTokenInternal( tokenId, sessionID, otherData );
 
         String finalToken = new StringBuilder().append( tokenId ).append( SEPARATOR ).append( token ).toString();
 
@@ -288,20 +272,34 @@ public class CSRFTokenManager
     }
 
     /**
-     * Generate a key based on a random id, session id, and cluster id, and current time
+     * Generate a key based on a random id, session id, and current time with optional other data added
      *
      * @param id a random id
      * @param sessionID the session of the current request
+     * @param dataToCrypt (Optional) any other strings that should be used to generate the token. See class definition.
      * @return a generated stateless token, or null, if an error occurred
      */
-    private String generateToken( String id, String sessionID )
+    private String generateTokenInternal( String id, String sessionID, String... dataToCrypt )
     {
         String tokenString;
 
-        String timestamp = Long.toString( this.time.millis() );
+        String timestamp = Long.toString( getCurrentTime() );
 
-        String cryptText = new StringBuilder().append( sessionID ).append( SEPARATOR ).append( timestamp ).toString();
+        // always begin with session and timestamp
+        StringBuilder sbCryptText = new StringBuilder();
+        sbCryptText.append( sessionID ).append( SEPARATOR ).append( timestamp );
 
+        // if ontherdata supplied, append it to the sbCryptText in the same format, maintaining ordering
+        if ( dataToCrypt != null )
+        {
+            int len = dataToCrypt.length;
+            for ( int i = 0; i < len; i++ )
+            {
+                sbCryptText.append( SEPARATOR ).append( dataToCrypt[i] );
+            }
+        }
+
+        String cryptText = sbCryptText.toString();
         String key = sessionID;
         String iv = id;
 
@@ -325,16 +323,17 @@ public class CSRFTokenManager
     }
 
     /**
-     * Ensures that the current request contains a valid csrf token. Valid tokens are ones that were generated by this
-     * session+cluster+ randomly generated token and timestamp. The timestamp must be within some number of milliseconds
-     * before now.
+     * Ensures that the supplied token is a valid csrf token. Valid tokens are made up of the current session, randomly
+     * generated token, timestamp, and any other data supplied. The timestamp must be within some number of milliseconds
+     * before now based on the {@linkplain #getAllowedExpiry()}
      *
      * @param token the incoming token to test against
      * @param sessionID the sessionID of the current request
+     * @param otherData (Optional) any other strings that should be used to validate the token. See class definition.
      * @return true if the token is valid for this sessionID. false otherwise
      * @throws IllegalArgumentException if the session ID is null
      */
-    public boolean validateCSRFToken( String token, String sessionID )
+    public boolean validateToken( String token, String sessionID, String... otherData )
         throws IllegalArgumentException
     {
         if ( token == null || !token.contains( SEPARATOR ) )
@@ -352,7 +351,7 @@ public class CSRFTokenManager
         String tokenId = token.substring( 0, sep );
         String tokenString = token.substring( sep + 1 );
 
-        boolean isValid = validateToken( tokenId, sessionID, tokenString );
+        boolean isValid = validateTokenInternal( tokenId, sessionID, tokenString, otherData );
 
         if ( !isValid )
         {
@@ -368,14 +367,15 @@ public class CSRFTokenManager
      *
      * @param tokenId the random ID to use in key generation
      * @param sessionID the session of the current request
+     * @param dataToCrypt (Optional) any other strings that should be used to validate the token. See class definition.
      * @param tokenString the token value to check against
      * @return true if the token is valid, false otherwise
      */
-    private boolean validateToken( String tokenId, String sessionID, String tokenString )
+    private boolean validateTokenInternal( String tokenId, String sessionID, String tokenString, String... dataToCrypt )
     {
         boolean result = false;
 
-        long timestamp = this.time.millis();
+        long timestamp = getCurrentTime();
 
         String key = sessionID;
         String iv = tokenId;
@@ -388,26 +388,56 @@ public class CSRFTokenManager
             String cryptText = new String( decrypted, "UTF-8" );
             String[] decryptParts = cryptText.split( Pattern.quote( SEPARATOR ) );
 
-            if ( decryptParts.length == 2 )
+            int cryptlen = dataToCrypt == null ? 0 : dataToCrypt.length;
+
+            // 2 guaranteed pieces (session and timestamp) plus the additional data
+            if ( decryptParts.length == ( 2 + cryptlen ) )
             {
-                String incomingSession = decryptParts[0];
-                long incomingTimestamp = Long.parseLong( decryptParts[1] );
+                String decryptedSession = decryptParts[0];
+                long decryptedTimestamp = Long.parseLong( decryptParts[1] );
 
                 /*
-                 * verify sessions and clusterIDs match verify that the
-                 * timestamp in the token is within the permitted time allowance
+                 * verify sessions match verify that the timestamp in the 
+                 * token is within the permitted time allowance and verify 
+                 * all other possible data matches in order
                  */
-                if ( !incomingSession.equals( sessionID ) )
+                if ( !decryptedSession.equals( sessionID ) )
                 {
                     String error = new StringBuilder().append( "CSRF Token session ids don't match. Expected: " )
-                        .append( sessionID ).append( "but received" ).append( incomingSession ).toString();
+                        .append( sessionID ).append( "but received: " ).append( decryptedSession ).toString();
+
                     this.handler.handleValidationError( error );
                 }
-                else if ( ( incomingTimestamp + getAllowedExpiry() ) < timestamp )
+                else if ( ( decryptedTimestamp + getAllowedExpiry() ) < timestamp )
                 {
                     String error = new StringBuilder().append( "CSRF Token has expired. Expected: " )
-                        .append( timestamp ).append( " but received " ).append( incomingTimestamp ).toString();
+                        .append( timestamp ).append( " but received: " ).append( decryptedTimestamp ).toString();
+
                     this.handler.handleValidationError( error );
+                }
+                else if ( cryptlen > 0 )
+                {
+                    for ( int i = 0; i < cryptlen; i++ )
+                    {
+                        String decryptedData = decryptParts[2 + i];
+                        String intendedData = dataToCrypt[i];
+                        if ( decryptedData.equals( intendedData ) )
+                        {
+                            result = true;
+                        }
+                        else
+                        {
+                            String error = new StringBuilder().append( "CSRF Token data does not match. Excepted: " )
+                                .append( intendedData ).append( " but received: " ).append( decryptedData ).toString();
+
+                            this.handler.handleValidationError( error );
+
+                            result = false;
+
+                            // if any fails, quit immediately
+                            break;
+                        }
+                    }
                 }
                 else
                 {
@@ -418,7 +448,8 @@ public class CSRFTokenManager
         catch ( Exception e )
         {
             String error = new StringBuilder().append( "Could not validate token " ).append( tokenString )
-                .append( " for session " ).append( sessionID ).append( " due to exception" ).toString();
+                .append( " for session " ).append( sessionID ).append( " due to exception: " ).append( e.getMessage() )
+                .toString();
 
             this.handler.handleFatalException( error, e );
         }
@@ -453,6 +484,17 @@ public class CSRFTokenManager
         cipher.init( mode, keyspec, gcmspec );
         cryptedValue = cipher.doFinal( textBytes );
         return cryptedValue;
+    }
+
+    /**
+     * Return the current time for this application, in milliseconds. This method is exposed to subclasses as system
+     * clocks may vary in multinode cloud environments that may span normal datetimes.
+     * 
+     * @return the current time in milliseconds
+     */
+    protected long getCurrentTime()
+    {
+        return System.currentTimeMillis();
     }
 
 }

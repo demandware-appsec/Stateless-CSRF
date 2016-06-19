@@ -32,8 +32,7 @@ public class DefaultCSRFErrorHandler
     @Override
     public void handleFatalException( String message, Exception e )
     {
-        System.err.println( message );
-        System.err.println( e.getMessage() );
+        throw new SecurityException( message, e );
     }
 
 }
