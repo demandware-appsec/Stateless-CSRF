@@ -14,7 +14,7 @@ mvn -f stateless-csrf/pom.xml install
 ```
 and look in stateless-csrf/target for the sources and jar file.
 
-[JDK7/8 Prebuilt Jars](https://github.com/demandware-appsec/Stateless-CSRF/tree/gh-pages/jar)
+[JDK8 Prebuilt Jars](https://github.com/demandware-appsec/Stateless-CSRF/tree/gh-pages/jar)
 
 ## Design
 ### Background

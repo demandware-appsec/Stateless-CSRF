@@ -4,7 +4,7 @@ jdk:
 
 env:
   global:
-    - secure: "okeYsmDOeovRBj5SQM97TAyKMiebDTLTgj7Ry5slN8BGNOgVw45o1FUfuQ1zqBDMoyxk6hvEVKVtT7+eAFLEwfZqmd1cYpcZhp6mHjKjwyy3ewDOlkyky/Fjf0TncNQdYls/epFmz1v2b8gscqXX9BdlIzuoAeAoV43Gj5j8bUbRAykFRXodqJ6Bb1KrU/uJXQOAflgmdG8eTJGAV5Anbv350ECVwZXToAVs9psz/SZ4H/wU+O9+R1w4sUmADb2g8UO9qSmVViqlvajME/2hdDR3hR8cT2YnhXH3xd+3b2juGLdDD4WZ0euN+zlC7pf02U6ZejQWBUiOnbp8hqlDZjNCThllT0nZW+EDvZIc3eV/wq5Xr97C8tf6+glFiIFzmqv4pnIrPrnxVnNrC8rg0kqJ4Gy15m+FeDjMFh0EzomRdTaGfzcbPr2Bni162Pi+YHBnmpyIktiJ1IQ/zLWcPT8rBLQbh4JYNP6pY5rXCNnw227VwooVMr4XoKNLmAOK5z39POJSrQrfxxBaPbwnOZTPcANg0GtkYWJ0nyjHh7QVzuSTsteAszPoiviRzyaSFhtDvk4VDl1jG3H+biJixZCQIwaSuoMhKQpL2su1A+Xe9/9AzPmgnKnkRVbGtrUe/YDt+50mlpXEr9lFJQ8uJoaGAz0s+LQRTHEkMDrJFvM="
+    - secure: "foo"
 
 before_script:
   - chmod +x buildscripts/javadocs_publish.sh
