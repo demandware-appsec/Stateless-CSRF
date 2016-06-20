@@ -13,7 +13,6 @@ import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
-import java.time.Clock;
 import java.util.regex.Pattern;
 
 import javax.crypto.BadPaddingException;
@@ -35,17 +34,18 @@ import org.apache.commons.codec.binary.Hex;
  * </p>
  * <p>
  * In the default case, CSRF tokens are generated in this manner: <br>
+ * </p>
  * <ol>
  * <li>Given a SessionID (must be at least 16 bytes long), first generate a TokenID from a {@linkplain SecureRandom}
  * </li>
- * <li>Next, get the current timestamp according to the configured {@linkplain Clock}</li>
+ * <li>Next, get the current timestamp</li>
  * <li>Create the text to be encrypted, cryptText, as SessionID|timestamp</li>
  * <li>Use the TokenID as an IV and the first 16 bytes of the SessionID as key to encrypt the cryptText</li>
  * <li>Then prepend the TokenID to the encrypted value. This is the Token</li>
  * </ol>
- * </p>
  * <p>
  * In the default case, CSRF tokens are validated in this manner: <br>
+ * </p>
  * <ol>
  * <li>Given a SessionID and a Token, first split the token into TokenID and encrypted text</li>
  * <li>Next, decrypt the encrypted text using the first 16 bytes of the SessionID as key and TokenID as IV</li>
@@ -53,7 +53,6 @@ import org.apache.commons.codec.binary.Hex;
  * <li>validate that the full SessionID matches the decrypted version (not just first 16 bytes)</li>
  * <li>validate that the timestamp is within the expiration time from now</li>
  * </ol>
- * </p>
  * <p>
  * The generation and validation methods also allow application developers to specify further items to be encrypted (in
  * addition to the sessionID and timestamp). These items are validated in their supplied order, so developers should
