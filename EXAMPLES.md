@@ -6,7 +6,7 @@
 ```jsp
 <form ...>
 	...
-	<input type="hidden" name="<%=csrfTokenManager.getCSRFTokenName()%>" value="<%=csrfTokenManager.generateToken(session.getId()%>"/>
+	<input type="hidden" name="<%=csrfTokenManager.getCSRFTokenName()%>" value="<%=csrfTokenManager.generateToken(session.getId())%>"/>
 	...
 </form>
 ```
@@ -73,5 +73,5 @@ public class LoggingCSRFErrorHandler
 ### Instantiate and assign to the Manager
 ```java
 CSRFTokenManager csrfTokenManager = new CSRFTokenManager();
-csrfTokenManager.setErrorHandler( new LoggingCSRFErrorHandler( LogManager.getLogger(), LogManager.getLogger( "SecurityLog" ) )
+csrfTokenManager.setErrorHandler( new LoggingCSRFErrorHandler( LogManager.getLogger(), LogManager.getLogger( "SecurityLog" ) ) )
 ```
