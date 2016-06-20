@@ -1,8 +1,5 @@
 # Stateless CSRF Token Management
 
-## Code Status
-[![Build Status](https://travis-ci.org/demandware-appsec/Stateless-CSRF.svg?branch=master)](https://travis-ci.org/demandware-appsec/Stateless-CSRF)
-
 ## Documentation
 [Stateless CSRF Token Management Documentation](http://demandware-appsec.github.io/Stateless-CSRF/javadoc/)
 
