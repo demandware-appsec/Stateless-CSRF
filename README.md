@@ -71,4 +71,5 @@ Included is a set of JUnit tests that cover ~95% of instructions in the library.
 
 ## License
 Copyright 2016  Demandware Inc, All Rights Reserved.
+
 [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0.txt)
