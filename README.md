@@ -1,5 +1,5 @@
 # Stateless CSRF Token Management
-[![analytics](http://www.google-analytics.com/collect?v=1&t=pageview&tid=UA-79686240-1&cid=5bc8d9b9-99b3-4646-b434-81d5d4479ff3&dl=https%3A%2F%2Fgithub.com%2Fdemandware-appsec%2Fstateless-CSRF)]()
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.demandware.appsec/stateless-csrf/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.demandware.appsec/stateless-csrf)[![analytics](http://www.google-analytics.com/collect?v=1&t=pageview&tid=UA-79686240-1&cid=5bc8d9b9-99b3-4646-b434-81d5d4479ff3&dl=https%3A%2F%2Fgithub.com%2Fdemandware-appsec%2Fstateless-CSRF)]()
 
 
 ## Documentation
@@ -10,6 +10,14 @@ Provide a Cross Site Request Forgery (CSRF) defense system that adds no state re
 
 ## Installation
 
+### Maven Central
+Use the following coordinates
+```
+<groupId>com.demandware.appsec</groupId>
+<artifactId>stateless-csrf</artifactId>
+```
+
+### Manual
 Clone this repository, then run 
 ```
 mvn -f stateless-csrf/pom.xml install
