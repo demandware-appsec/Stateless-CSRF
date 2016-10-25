@@ -14,22 +14,19 @@ package com.demandware.appsec.csrf;
  * @author Chris Smith
  */
 public class DefaultCSRFErrorHandler
-    extends CSRFErrorHandler
+    implements CSRFErrorHandler
 {
 
-    @Override
     public void handleValidationError( String message )
     {
         System.err.println( message );
     }
 
-    @Override
     public void handleInternalError( String message )
     {
         System.err.println( message );
     }
 
-    @Override
     public void handleFatalException( String message, Exception e )
     {
         throw new SecurityException( message, e );

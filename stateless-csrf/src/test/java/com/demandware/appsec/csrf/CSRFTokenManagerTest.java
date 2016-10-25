@@ -48,7 +48,7 @@ public class CSRFTokenManagerTest
     }
 
     static class CSRFHandlerLog
-        extends CSRFErrorHandler
+        implements CSRFErrorHandler
     {
         StringBuilder logger;
 
@@ -57,7 +57,6 @@ public class CSRFTokenManagerTest
             logger = new StringBuilder();
         }
 
-        @Override
         public void handleFatalException( String error, Exception e )
         {
             logger.append( error );
@@ -77,13 +76,11 @@ public class CSRFTokenManagerTest
             logger.setLength( 0 );
         }
 
-        @Override
         public void handleValidationError( String message )
         {
             handleFatalException( message, null );
         }
 
-        @Override
         public void handleInternalError( String message )
         {
             handleFatalException( message, null );
@@ -114,7 +111,7 @@ public class CSRFTokenManagerTest
 
         assertTrue( this.csrfMgrDefault.validateToken( tokenValue, SESSION_ID, additionalData ) );
     }
-
+    
     // Extra data added to token, but validate is different extra data
     @Test
     public void testBadTokenGenerationWrongExtraData()
@@ -180,7 +177,7 @@ public class CSRFTokenManagerTest
         long expiry = 10000000L;
         String name = "foobar";
 
-        CSRFTokenManager mgr = new CSRFTokenManager( null );
+        CSRFTokenManager mgr = new CSRFTokenManager();
         mgr.setAllowedExpiry( expiry );
         mgr.setCSRFTokenName( name );
 
@@ -212,15 +209,17 @@ public class CSRFTokenManagerTest
 
         String token1 = new CSRFTokenManager( badRand ).generateToken( SESSION_ID );
         Thread.sleep( 100L );
-        
+
         final long now = System.currentTimeMillis();
-        
-        CSRFTokenManager frozenInTime = new CSRFTokenManager( badRand){
-          protected long getCurrentTime(){
-              return now;
-          }
+
+        CSRFTokenManager frozenInTime = new CSRFTokenManager( badRand )
+        {
+            protected long getCurrentTime()
+            {
+                return now;
+            }
         };
-        
+
         String token2 = frozenInTime.generateToken( SESSION_ID );
         String token3 = frozenInTime.generateToken( SESSION_ID );
 
