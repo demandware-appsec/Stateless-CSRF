@@ -9,13 +9,13 @@
 package com.demandware.appsec.csrf;
 
 /**
- * A Handler to be used in conjunction with the {@linkplain CSRFTokenManager}. The handler allows special configuration
- * to handle error/exception cases. It is recommended that implementors create a {@linkplain CSRFErrorHandler} that
+ * A Handler to be used in conjunction with the {@linkplain StatelessCSRFTokenManager}. The handler allows special configuration
+ * to handle error/exception cases. It is recommended that implementors create a {@linkplain ICSRFErrorHandler} that
  * utilizes their logging mechanisms for their application
  * 
  * @author Chris Smith
  */
-public interface CSRFErrorHandler
+public interface ICSRFErrorHandler
 {
     /**
      * Called when a CSRF Token cannot be validated for some reason

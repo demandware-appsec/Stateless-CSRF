@@ -60,13 +60,13 @@ import org.apache.commons.codec.binary.Hex;
  * take care to maintain the same order during validation as was used in generation.
  * </p>
  * <p>
- * <b>Note:</b> By default, a {@linkplain CSRFErrorHandler} is assigned to the Manager. This handler writes all data to
+ * <b>Note:</b> By default, a {@linkplain ICSRFErrorHandler} is assigned to the Manager. This handler writes all data to
  * SysErr during generation and validation when an error has occurred or validation has failed
  * </p>
  *
  * @author Chris Smith
  */
-public class CSRFTokenManager
+public class StatelessCSRFTokenManager
 {
 
     /*
@@ -121,37 +121,37 @@ public class CSRFTokenManager
     /*
      * manages all error conditions. Default is to write to syserr
      */
-    private CSRFErrorHandler handler;
+    private ICSRFErrorHandler handler;
 
     /**
-     * Create a new {@linkplain CSRFTokenManager} with all defaults
+     * Create a new {@linkplain StatelessCSRFTokenManager} with all defaults
      */
-    public CSRFTokenManager()
+    public StatelessCSRFTokenManager()
     {
         this( null, null );
     }
 
     /**
-     * Create a new {@linkplain CSRFTokenManager} with all defaults and use the provided {@linkplain SecureRandom}
+     * Create a new {@linkplain StatelessCSRFTokenManager} with all defaults and use the provided {@linkplain SecureRandom}
      * 
      * @param random a {@linkplain SecureRandom} instance to use in generating random tokens or null which will generate
      *            a new {@linkplain SecureRandom}
      */
-    public CSRFTokenManager( SecureRandom random )
+    public StatelessCSRFTokenManager( SecureRandom random )
     {
         this( random, null );
     }
 
     /**
-     * Create a new {@linkplain CSRFTokenManager} with all defaults and use the provided {@linkplain SecureRandom} and
-     * {@linkplain CSRFErrorHandler}
+     * Create a new {@linkplain StatelessCSRFTokenManager} with all defaults and use the provided {@linkplain SecureRandom} and
+     * {@linkplain ICSRFErrorHandler}
      * 
      * @param random a {@linkplain SecureRandom} instance to use in generating random tokens or null which will generate
      *            a new {@linkplain SecureRandom}
-     * @param handler a {@linkplain CSRFErrorHandler} instance to handle reporting issues that are raised during
+     * @param handler a {@linkplain ICSRFErrorHandler} instance to handle reporting issues that are raised during
      *            processing, or null which will default to the {@linkplain DefaultCSRFErrorHandler} instead
      */
-    public CSRFTokenManager( SecureRandom random, CSRFErrorHandler handler )
+    public StatelessCSRFTokenManager( SecureRandom random, ICSRFErrorHandler handler )
     {
         if ( random == null )
         {
@@ -170,12 +170,12 @@ public class CSRFTokenManager
     }
 
     /**
-     * Configure this object to use a different {@linkplain CSRFErrorHandler}
+     * Configure this object to use a different {@linkplain ICSRFErrorHandler}
      * 
-     * @param handler the {@linkplain CSRFErrorHandler} to use
+     * @param handler the {@linkplain ICSRFErrorHandler} to use
      * @throws IllegalArgumentException if the handler is null
      */
-    public void setErrorHandler( CSRFErrorHandler handler )
+    public void setErrorHandler( ICSRFErrorHandler handler )
         throws IllegalArgumentException
     {
         if ( handler == null )

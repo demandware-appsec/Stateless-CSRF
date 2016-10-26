@@ -9,12 +9,12 @@
 package com.demandware.appsec.csrf;
 
 /**
- * A default implementation of {@linkplain CSRFErrorHandler} that simply dumps the passed data to the system error log
+ * A default implementation of {@linkplain ICSRFErrorHandler} that simply dumps the passed data to the system error log
  * 
  * @author Chris Smith
  */
 public class DefaultCSRFErrorHandler
-    implements CSRFErrorHandler
+    implements ICSRFErrorHandler
 {
 
     public void handleValidationError( String message )

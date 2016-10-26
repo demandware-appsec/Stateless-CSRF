@@ -22,11 +22,11 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-public class CSRFTokenManagerTest
+public class StatelessCSRFTokenManagerTest
 {
-    private CSRFTokenManager csrfMgrDefault;
+    private StatelessCSRFTokenManager csrfMgrDefault;
 
-    private CSRFTokenManager csrfMgrLogs;
+    private StatelessCSRFTokenManager csrfMgrLogs;
 
     private CSRFHandlerLog csrfHandler;
 
@@ -39,16 +39,16 @@ public class CSRFTokenManagerTest
     public void setUp()
     {
         // this mgr throws exceptions
-        this.csrfMgrDefault = new CSRFTokenManager();
+        this.csrfMgrDefault = new StatelessCSRFTokenManager();
         // this logs to custom logger
-        this.csrfMgrLogs = new CSRFTokenManager();
+        this.csrfMgrLogs = new StatelessCSRFTokenManager();
         // the custom logger
         this.csrfHandler = new CSRFHandlerLog();
         this.csrfMgrLogs.setErrorHandler( csrfHandler );
     }
 
     static class CSRFHandlerLog
-        implements CSRFErrorHandler
+        implements ICSRFErrorHandler
     {
         StringBuilder logger;
 
@@ -177,7 +177,7 @@ public class CSRFTokenManagerTest
         long expiry = 10000000L;
         String name = "foobar";
 
-        CSRFTokenManager mgr = new CSRFTokenManager();
+        StatelessCSRFTokenManager mgr = new StatelessCSRFTokenManager();
         mgr.setAllowedExpiry( expiry );
         mgr.setCSRFTokenName( name );
 
@@ -207,12 +207,12 @@ public class CSRFTokenManagerTest
             }
         };
 
-        String token1 = new CSRFTokenManager( badRand ).generateToken( SESSION_ID );
+        String token1 = new StatelessCSRFTokenManager( badRand ).generateToken( SESSION_ID );
         Thread.sleep( 100L );
 
         final long now = System.currentTimeMillis();
 
-        CSRFTokenManager frozenInTime = new CSRFTokenManager( badRand )
+        StatelessCSRFTokenManager frozenInTime = new StatelessCSRFTokenManager( badRand )
         {
             protected long getCurrentTime()
             {
@@ -232,7 +232,7 @@ public class CSRFTokenManagerTest
     public void testBadHandler()
     {
         this.exception.expect( IllegalArgumentException.class );
-        new CSRFTokenManager().setErrorHandler( null );
+        new StatelessCSRFTokenManager().setErrorHandler( null );
     }
 
     // negative expiration check for expiry
@@ -240,7 +240,7 @@ public class CSRFTokenManagerTest
     public void testBadExpiry()
     {
         this.exception.expect( IllegalArgumentException.class );
-        new CSRFTokenManager().setAllowedExpiry( -1L );
+        new StatelessCSRFTokenManager().setAllowedExpiry( -1L );
     }
 
     // null check for token name
@@ -248,7 +248,7 @@ public class CSRFTokenManagerTest
     public void testBadTokenName()
     {
         this.exception.expect( IllegalArgumentException.class );
-        new CSRFTokenManager().setCSRFTokenName( null );
+        new StatelessCSRFTokenManager().setCSRFTokenName( null );
     }
 
     // null check for null session
@@ -256,7 +256,7 @@ public class CSRFTokenManagerTest
     public void testBadSessionValidate()
     {
         this.exception.expect( IllegalArgumentException.class );
-        CSRFTokenManager mgr = new CSRFTokenManager();
+        StatelessCSRFTokenManager mgr = new StatelessCSRFTokenManager();
         mgr.validateToken( mgr.generateToken( SESSION_ID ), null );
     }
 
@@ -288,7 +288,7 @@ public class CSRFTokenManagerTest
         throws InterruptedException
     {
 
-        CSRFTokenManager curmgr = new CSRFTokenManager();
+        StatelessCSRFTokenManager curmgr = new StatelessCSRFTokenManager();
         curmgr.setAllowedExpiry( 1L ); // set expiration very low
 
         String tokenName = curmgr.getCSRFTokenName();
@@ -383,7 +383,7 @@ public class CSRFTokenManagerTest
         throws InterruptedException
     {
 
-        CSRFTokenManager mgr = new CSRFTokenManager();
+        StatelessCSRFTokenManager mgr = new StatelessCSRFTokenManager();
         mgr.setErrorHandler( csrfHandler );
         csrfHandler.clearLog();
 
