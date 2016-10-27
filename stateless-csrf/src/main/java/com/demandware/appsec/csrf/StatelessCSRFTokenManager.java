@@ -15,6 +15,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.regex.Pattern;
 
+import javax.crypto.AEADBadTagException;
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
@@ -59,13 +60,13 @@ import org.apache.commons.codec.binary.Hex;
  * take care to maintain the same order during validation as was used in generation.
  * </p>
  * <p>
- * <b>Note:</b> By default, a {@linkplain CSRFErrorHandler} is assigned to the Manager. This handler writes all data to
+ * <b>Note:</b> By default, a {@linkplain ICSRFErrorHandler} is assigned to the Manager. This handler writes all data to
  * SysErr during generation and validation when an error has occurred or validation has failed
  * </p>
  *
  * @author Chris Smith
  */
-public class CSRFTokenManager
+public class StatelessCSRFTokenManager
 {
 
     /*
@@ -120,44 +121,61 @@ public class CSRFTokenManager
     /*
      * manages all error conditions. Default is to write to syserr
      */
-    private CSRFErrorHandler handler;
+    private ICSRFErrorHandler handler;
 
     /**
-     * Create a new {@linkplain CSRFTokenManager} with all defaults
+     * Create a new {@linkplain StatelessCSRFTokenManager} with all defaults
      */
-    public CSRFTokenManager()
+    public StatelessCSRFTokenManager()
     {
-        this( null );
+        this( null, null );
     }
 
     /**
-     * Create a new {@linkplain CSRFTokenManager} with all defaults and use the provided {@linkplain SecureRandom}
+     * Create a new {@linkplain StatelessCSRFTokenManager} with all defaults and use the provided {@linkplain SecureRandom}
      * 
-     * @param random a {@linkplain SecureRandom} instance to use in generating random tokens
+     * @param random a {@linkplain SecureRandom} instance to use in generating random tokens or null which will generate
+     *            a new {@linkplain SecureRandom}
      */
-    public CSRFTokenManager( SecureRandom random )
+    public StatelessCSRFTokenManager( SecureRandom random )
+    {
+        this( random, null );
+    }
+
+    /**
+     * Create a new {@linkplain StatelessCSRFTokenManager} with all defaults and use the provided {@linkplain SecureRandom} and
+     * {@linkplain ICSRFErrorHandler}
+     * 
+     * @param random a {@linkplain SecureRandom} instance to use in generating random tokens or null which will generate
+     *            a new {@linkplain SecureRandom}
+     * @param handler a {@linkplain ICSRFErrorHandler} instance to handle reporting issues that are raised during
+     *            processing, or null which will default to the {@linkplain DefaultCSRFErrorHandler} instead
+     */
+    public StatelessCSRFTokenManager( SecureRandom random, ICSRFErrorHandler handler )
     {
         if ( random == null )
         {
-            this.random = new SecureRandom();
+            random = new SecureRandom();
         }
-        else
+        this.random = random;
+
+        if ( handler == null )
         {
-            this.random = random;
+            handler = new DefaultCSRFErrorHandler();
         }
+        this.handler = handler;
 
         this.csrfTokenName = DEFAULT_CSRF_TOKEN_NAME;
         this.expiry = DEFAULT_EXPIRY;
-        this.handler = new DefaultCSRFErrorHandler();
     }
 
     /**
-     * Configure this object to use a different {@linkplain CSRFErrorHandler}
+     * Configure this object to use a different {@linkplain ICSRFErrorHandler}
      * 
-     * @param handler the {@linkplain CSRFErrorHandler} to use
+     * @param handler the {@linkplain ICSRFErrorHandler} to use
      * @throws IllegalArgumentException if the handler is null
      */
-    public void setErrorHandler( CSRFErrorHandler handler )
+    public void setErrorHandler( ICSRFErrorHandler handler )
         throws IllegalArgumentException
     {
         if ( handler == null )
@@ -208,7 +226,7 @@ public class CSRFTokenManager
     /**
      * Configure a new expiration time on tokens. This takes effect immediately on all outstanding tokens. e.g. if the
      * old expiry were 10 mins and the new expiry is 20 mins, all tokens generated 19 mins ago are now valid, even
-     * though they weren't before the expiration was reset. 
+     * though they weren't before the expiration was reset.
      * 
      * @param expiry the new expiration time in milliseconds
      * @throws IllegalArgumentException if the expiration time is less that 0
@@ -280,7 +298,7 @@ public class CSRFTokenManager
      */
     private String generateTokenInternal( String id, String sessionID, String... dataToCrypt )
     {
-        String tokenString;
+        String tokenString = null;
 
         String timestamp = Long.toString( getCurrentTime() );
 
@@ -288,7 +306,7 @@ public class CSRFTokenManager
         StringBuilder sbCryptText = new StringBuilder();
         sbCryptText.append( sessionID ).append( SEPARATOR ).append( timestamp );
 
-        // if ontherdata supplied, append it to the sbCryptText in the same format, maintaining ordering
+        // if other data supplied, append it to the sbCryptText in the same format, maintaining ordering
         if ( dataToCrypt != null )
         {
             int len = dataToCrypt.length;
@@ -314,8 +332,6 @@ public class CSRFTokenManager
                 .append( ", and sessionID " ).append( sessionID ).append( " with exception" ).toString();
 
             this.handler.handleFatalException( error, e );
-
-            tokenString = null;
         }
 
         return tokenString;
@@ -443,6 +459,13 @@ public class CSRFTokenManager
                     result = true;
                 }
             }
+        }
+        catch ( AEADBadTagException e )
+        {
+            String error = new StringBuilder().append( "Could not validate token " ).append( tokenString )
+                .append( " for different session " ).append( sessionID ).toString();
+
+            this.handler.handleValidationError( error );
         }
         catch ( Exception e )
         {

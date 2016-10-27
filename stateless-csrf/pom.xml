@@ -4,7 +4,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.demandware.appsec</groupId>
 	<artifactId>stateless-csrf</artifactId>
-	<version>1.0</version>
+	<version>1.1.0</version>
 	<name>${project.groupId}:${project.artifactId}</name>
 	<description>Provide a Cross Site Request Forgery (CSRF) defense system that adds no state requirements.</description>
 	<url>https://github.com/demandware-appsec/Stateless-CSRF/tree/master/stateless-csrf</url>

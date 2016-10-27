@@ -9,27 +9,24 @@
 package com.demandware.appsec.csrf;
 
 /**
- * A default implementation of {@linkplain CSRFErrorHandler} that simply dumps the passed data to the system error log
+ * A default implementation of {@linkplain ICSRFErrorHandler} that simply dumps the passed data to the system error log
  * 
  * @author Chris Smith
  */
 public class DefaultCSRFErrorHandler
-    extends CSRFErrorHandler
+    implements ICSRFErrorHandler
 {
 
-    @Override
     public void handleValidationError( String message )
     {
         System.err.println( message );
     }
 
-    @Override
     public void handleInternalError( String message )
     {
         System.err.println( message );
     }
 
-    @Override
     public void handleFatalException( String message, Exception e )
     {
         throw new SecurityException( message, e );

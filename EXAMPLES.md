@@ -72,6 +72,6 @@ public class LoggingCSRFErrorHandler
 ```
 ### Instantiate and assign to the Manager
 ```java
-CSRFTokenManager csrfTokenManager = new CSRFTokenManager();
+StatelessCSRFTokenManager csrfTokenManager = new StatelessCSRFTokenManager();
 csrfTokenManager.setErrorHandler( new LoggingCSRFErrorHandler( LogManager.getLogger(), LogManager.getLogger( "SecurityLog" ) ) )
 ```

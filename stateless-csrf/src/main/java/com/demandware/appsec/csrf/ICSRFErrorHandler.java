@@ -9,27 +9,27 @@
 package com.demandware.appsec.csrf;
 
 /**
- * A Handler to be used in conjunction with the {@linkplain CSRFTokenManager}. The handler allows special configuration
- * to handle error/exception cases. It is recommended that implementors create a {@linkplain CSRFErrorHandler} that
+ * A Handler to be used in conjunction with the {@linkplain StatelessCSRFTokenManager}. The handler allows special configuration
+ * to handle error/exception cases. It is recommended that implementors create a {@linkplain ICSRFErrorHandler} that
  * utilizes their logging mechanisms for their application
  * 
  * @author Chris Smith
  */
-public abstract class CSRFErrorHandler
+public interface ICSRFErrorHandler
 {
     /**
      * Called when a CSRF Token cannot be validated for some reason
      * 
      * @param message the reason the token is invalid
      */
-    public abstract void handleValidationError( String message );
+    public void handleValidationError( String message );
 
     /**
      * Called when input to a CSRF function does not meet the required criteria for that function
      * 
      * @param message the reason this error was thrown
      */
-    public abstract void handleInternalError( String message );
+    public void handleInternalError( String message );
 
     /**
      * Called when a function encounters an exception it cannot recover from
@@ -37,5 +37,5 @@ public abstract class CSRFErrorHandler
      * @param message the current state of the function when the exception was thrown
      * @param e the exception thrown
      */
-    public abstract void handleFatalException( String message, Exception e );
+    public void handleFatalException( String message, Exception e );
 }
