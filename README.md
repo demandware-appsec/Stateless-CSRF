@@ -57,14 +57,12 @@ The system generates tokens in this way:
 * Generate a timestamp of this moment, in milliseconds - **timestamp**
 * Create the text to be encrypted - **sessionID** + "|" + **timestamp** = **cryptText**
 * Then, encrypt the **cryptText** using the first 16 bytes of the **sessionID** as the key and the 16 bytes of the **tokenID** as Initialization Vector - **encryptedValue**
-* Encode the **encryptedValue** to produce the **tokenString**
-* Finally, create the **CSRFToken** itself by doing **tokenID** + "|" + **tokenString**
+* Finally, create the **CSRFToken** itself by concatenating the **tokenID** and **encryptedValue** and encoding 
 
 To validate:
 * The library needs the incoming **CSRFToken** and the **sessionID**
-* First split the **CSRFToken** on the "|" character into **tokenID** and **tokenString**
+* First decode the **CSRFToken** and split into the **tokenID** and **encryptedValue**
 * Generate a timestamp of this moment, in milliseconds - **timestamp**
-* Decode the **tokenString** to the **encryptedValue**
 * Decrypt the **encryptedValue** using the first 16 bytes of the **sessionID** as key and the **tokenID** as Initialization Vector - **cryptText**
 * Split the **cryptText** into the **incomingSessionID** and **incomingTimestamp**
 * Verify that the **incomingSessionID** equals the **sessionID** (all bytes, not just the first 16)
