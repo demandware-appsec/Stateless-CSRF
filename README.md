@@ -53,18 +53,18 @@ This library is designed to be stateless, or at least not add any new stateful i
 
 The system generates tokens in this way:
 * Given a Session ID of at least 16 bytes - **sessionID**
-* Generate a random 8 byte -> 16 Hex character string - **tokenID**
+* Generate a random 16 byte - **tokenID**
 * Generate a timestamp of this moment, in milliseconds - **timestamp**
 * Create the text to be encrypted - **sessionID** + "|" + **timestamp** = **cryptText**
 * Then, encrypt the **cryptText** using the first 16 bytes of the **sessionID** as the key and the 16 bytes of the **tokenID** as Initialization Vector - **encryptedValue**
-* Hex encode the **encryptedValue** to produace the **tokenString**
+* Encode the **encryptedValue** to produce the **tokenString**
 * Finally, create the **CSRFToken** itself by doing **tokenID** + "|" + **tokenString**
 
 To validate:
 * The library needs the incoming **CSRFToken** and the **sessionID**
 * First split the **CSRFToken** on the "|" character into **tokenID** and **tokenString**
 * Generate a timestamp of this moment, in milliseconds - **timestamp**
-* Hex decode the **tokenString** to the **encryptedValue**
+* Decode the **tokenString** to the **encryptedValue**
 * Decrypt the **encryptedValue** using the first 16 bytes of the **sessionID** as key and the **tokenID** as Initialization Vector - **cryptText**
 * Split the **cryptText** into the **incomingSessionID** and **incomingTimestamp**
 * Verify that the **incomingSessionID** equals the **sessionID** (all bytes, not just the first 16)
