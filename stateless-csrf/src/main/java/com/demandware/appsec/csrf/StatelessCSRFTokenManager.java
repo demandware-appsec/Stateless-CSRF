@@ -9,10 +9,12 @@
 package com.demandware.appsec.csrf;
 
 import java.io.UnsupportedEncodingException;
+import java.nio.charset.Charset;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.util.Arrays;
 import java.util.regex.Pattern;
 
 import javax.crypto.AEADBadTagException;
@@ -23,7 +25,7 @@ import javax.crypto.NoSuchPaddingException;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
-import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.codec.binary.Base64;
 
 /**
  * <p>
@@ -78,9 +80,9 @@ public class StatelessCSRFTokenManager
 
     /*
      * size of the generated token's ID (not the final token). it must be 16
-     * bytes long at least (after hex encoding)
+     * bytes long at least
      */
-    private static final int TOKEN_SIZE = 8;
+    private static final int TOKEN_SIZE = 16;
 
     /*
      * Default required for AES/GCM
@@ -132,7 +134,8 @@ public class StatelessCSRFTokenManager
     }
 
     /**
-     * Create a new {@linkplain StatelessCSRFTokenManager} with all defaults and use the provided {@linkplain SecureRandom}
+     * Create a new {@linkplain StatelessCSRFTokenManager} with all defaults and use the provided
+     * {@linkplain SecureRandom}
      * 
      * @param random a {@linkplain SecureRandom} instance to use in generating random tokens or null which will generate
      *            a new {@linkplain SecureRandom}
@@ -143,8 +146,8 @@ public class StatelessCSRFTokenManager
     }
 
     /**
-     * Create a new {@linkplain StatelessCSRFTokenManager} with all defaults and use the provided {@linkplain SecureRandom} and
-     * {@linkplain ICSRFErrorHandler}
+     * Create a new {@linkplain StatelessCSRFTokenManager} with all defaults and use the provided
+     * {@linkplain SecureRandom} and {@linkplain ICSRFErrorHandler}
      * 
      * @param random a {@linkplain SecureRandom} instance to use in generating random tokens or null which will generate
      *            a new {@linkplain SecureRandom}
@@ -265,27 +268,30 @@ public class StatelessCSRFTokenManager
             return null;
         }
 
-        String tokenId = generateID( TOKEN_SIZE );
+        byte[] tokenId = generateID( TOKEN_SIZE );
 
-        String token = generateTokenInternal( tokenId, sessionID, otherData );
+        byte[] token = generateTokenInternal( tokenId, sessionID, otherData );
 
-        String finalToken = new StringBuilder().append( tokenId ).append( SEPARATOR ).append( token ).toString();
+        byte[] finalBytes = new byte[tokenId.length + token.length];
+        System.arraycopy( tokenId, 0, finalBytes, 0, tokenId.length );
+        System.arraycopy( token, 0, finalBytes, tokenId.length, token.length );
+
+        String finalToken = encodeToken( finalBytes );
 
         return finalToken;
     }
 
     /**
-     * Generate a random hex string of some given size
+     * Generate a random byte array of some given size
      *
      * @param size the number of bytes the ID should contain
-     * @return a random hex string
+     * @return a random byte array
      */
-    private String generateID( int size )
+    private byte[] generateID( int size )
     {
         byte[] bytes = new byte[size];
         random.nextBytes( bytes );
-        // hex is used to maintain entropy of the generated id
-        return Hex.encodeHexString( bytes );
+        return bytes;
     }
 
     /**
@@ -296,10 +302,8 @@ public class StatelessCSRFTokenManager
      * @param dataToCrypt (Optional) any other strings that should be used to generate the token. See class definition.
      * @return a generated stateless token, or null, if an error occurred
      */
-    private String generateTokenInternal( String id, String sessionID, String... dataToCrypt )
+    private byte[] generateTokenInternal( byte[] id, String sessionID, String... dataToCrypt )
     {
-        String tokenString = null;
-
         String timestamp = Long.toString( getCurrentTime() );
 
         // always begin with session and timestamp
@@ -317,14 +321,13 @@ public class StatelessCSRFTokenManager
         }
 
         String cryptText = sbCryptText.toString();
-        String key = sessionID;
-        String iv = id;
+        byte[] key = sessionID.getBytes( Charset.defaultCharset() );
+        byte[] iv = id;
 
-        byte[] encryptedValue;
+        byte[] encryptedValue = null;
         try
         {
             encryptedValue = crypt( key, iv, cryptText.getBytes( "UTF-8" ), Cipher.ENCRYPT_MODE );
-            tokenString = Hex.encodeHexString( encryptedValue );
         }
         catch ( Exception e )
         {
@@ -334,7 +337,7 @@ public class StatelessCSRFTokenManager
             this.handler.handleFatalException( error, e );
         }
 
-        return tokenString;
+        return encryptedValue;
     }
 
     /**
@@ -351,9 +354,9 @@ public class StatelessCSRFTokenManager
     public boolean validateToken( String token, String sessionID, String... otherData )
         throws IllegalArgumentException
     {
-        if ( token == null || !token.contains( SEPARATOR ) )
+        if ( token == null )
         {
-            this.handler.handleInternalError( "CSRF token is not be properly formed" );
+            this.handler.handleInternalError( "CSRF token does not exist" );
             return false;
         }
 
@@ -362,11 +365,7 @@ public class StatelessCSRFTokenManager
             throw new IllegalArgumentException( "Provided session id is null" );
         }
 
-        int sep = token.indexOf( SEPARATOR );
-        String tokenId = token.substring( 0, sep );
-        String tokenString = token.substring( sep + 1 );
-
-        boolean isValid = validateTokenInternal( tokenId, sessionID, tokenString, otherData );
+        boolean isValid = validateTokenInternal( token, sessionID, otherData );
 
         if ( !isValid )
         {
@@ -386,18 +385,19 @@ public class StatelessCSRFTokenManager
      * @param tokenString the token value to check against
      * @return true if the token is valid, false otherwise
      */
-    private boolean validateTokenInternal( String tokenId, String sessionID, String tokenString, String... dataToCrypt )
+    private boolean validateTokenInternal( String token, String sessionID, String... dataToCrypt )
     {
         boolean result = false;
 
         long timestamp = getCurrentTime();
 
-        String key = sessionID;
-        String iv = tokenId;
-
         try
         {
-            byte[] encryptedValue = Hex.decodeHex( tokenString.toCharArray() );
+            byte[] key = sessionID.getBytes( Charset.defaultCharset() );
+
+            byte[] tokenByte = decodeToken( token );
+            byte[] iv = Arrays.copyOfRange( tokenByte, 0, TOKEN_SIZE );
+            byte[] encryptedValue = Arrays.copyOfRange( tokenByte, TOKEN_SIZE, tokenByte.length );
 
             byte[] decrypted = crypt( key, iv, encryptedValue, Cipher.DECRYPT_MODE );
             String cryptText = new String( decrypted, "UTF-8" );
@@ -462,16 +462,16 @@ public class StatelessCSRFTokenManager
         }
         catch ( AEADBadTagException e )
         {
-            String error = new StringBuilder().append( "Could not validate token " ).append( tokenString )
+            String error = new StringBuilder().append( "Could not validate token " ).append( token )
                 .append( " for different session " ).append( sessionID ).toString();
 
             this.handler.handleValidationError( error );
         }
         catch ( Exception e )
         {
-            String error = new StringBuilder().append( "Could not validate token " ).append( tokenString )
-                .append( " for session " ).append( sessionID ).append( " due to exception: " ).append( e.getMessage() )
-                .toString();
+            String error =
+                new StringBuilder().append( "Could not validate token " ).append( token ).append( " for session " )
+                    .append( sessionID ).append( " due to exception: " ).append( e.getMessage() ).toString();
 
             this.handler.handleFatalException( error, e );
         }
@@ -495,14 +495,14 @@ public class StatelessCSRFTokenManager
      * @throws BadPaddingException if the underlying code throws this exception
      * @throws UnsupportedEncodingException if the underlying code throws this exception
      */
-    private byte[] crypt( String key, String iv, byte[] textBytes, int mode )
+    private byte[] crypt( byte[] key, byte[] iv, byte[] textBytes, int mode )
         throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException,
         InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException, UnsupportedEncodingException
     {
         byte[] cryptedValue = null;
         Cipher cipher = Cipher.getInstance( "AES/GCM/NoPadding" );
-        SecretKeySpec keyspec = new SecretKeySpec( key.getBytes( "UTF-8" ), 0, KEY_SIZE, "AES" );
-        GCMParameterSpec gcmspec = new GCMParameterSpec( GCM_TAG_BITS, iv.getBytes( "UTF-8" ), 0, PARAMETER_SPEC_SIZE );
+        SecretKeySpec keyspec = new SecretKeySpec( key, 0, KEY_SIZE, "AES" );
+        GCMParameterSpec gcmspec = new GCMParameterSpec( GCM_TAG_BITS, iv, 0, PARAMETER_SPEC_SIZE );
         cipher.init( mode, keyspec, gcmspec );
         cryptedValue = cipher.doFinal( textBytes );
         return cryptedValue;
@@ -517,6 +517,28 @@ public class StatelessCSRFTokenManager
     protected long getCurrentTime()
     {
         return System.currentTimeMillis();
+    }
+
+    /**
+     * Given a byte array, return an encoded version using a URL-safe Base64.
+     * 
+     * @param tokenBytes the bytes of a csrf token
+     * @return an encoded String of the tokenBytes
+     */
+    protected String encodeToken( byte[] tokenBytes )
+    {
+        return Base64.encodeBase64URLSafeString( tokenBytes );
+    }
+
+    /**
+     * Given a CSRF token String, return an decoded version using a URL-safe Base64.
+     * 
+     * @param tokenString the csrf token String
+     * @return the decoded bytes of the tokenString
+     */
+    protected byte[] decodeToken( String tokenString )
+    {
+        return Base64.decodeBase64( tokenString );
     }
 
 }

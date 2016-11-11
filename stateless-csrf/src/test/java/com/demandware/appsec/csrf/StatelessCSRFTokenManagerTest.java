@@ -93,6 +93,8 @@ public class StatelessCSRFTokenManagerTest
     {
         String tokenName = this.csrfMgrDefault.getCSRFTokenName();
         String tokenValue = this.csrfMgrDefault.generateToken( SESSION_ID );
+        
+        System.out.println( tokenValue );
         assertNotNull( tokenName );
         assertNotNull( tokenValue );
 
@@ -316,12 +318,9 @@ public class StatelessCSRFTokenManagerTest
         //@formatter:off
         String[] invalid = 
                     { 
-                        originalValue.substring( 0, originalValue.indexOf( "|" ) ) + "|foobar",
-                        "foobar" + originalValue.substring( originalValue.indexOf( "|" ) ), 
+                        "foobar", 
                         "", 
-                        originalValue + "|", 
-                        "|",
-                        originalValue.replace( "|", "||" ),
+                        originalValue + "aaaa", 
                         null,
                         this.csrfMgrDefault.generateToken( SESSION_ID+"|a" )
                     };
@@ -331,7 +330,7 @@ public class StatelessCSRFTokenManagerTest
         {
             try
             {
-                assertFalse( this.csrfMgrDefault.validateToken( bad, SESSION_ID ) );
+                assertFalse( bad, this.csrfMgrDefault.validateToken( bad, SESSION_ID ) );
             }
             catch ( SecurityException e )
             {
@@ -346,8 +345,7 @@ public class StatelessCSRFTokenManagerTest
         String tokenName = this.csrfMgrDefault.getCSRFTokenName();
         String tokenValue = this.csrfMgrDefault.generateToken( SESSION_ID );
 
-        char old = SESSION_ID.charAt( SESSION_ID.length() - 1 );
-        String sessionid = SESSION_ID.substring( 0, SESSION_ID.length() - 1 ) + ( old + 1 );
+        String sessionid = "ABCDEF0123456789";
 
         assertNotNull( tokenName );
         assertNotNull( tokenValue );
@@ -417,14 +415,11 @@ public class StatelessCSRFTokenManagerTest
         //@formatter:off
         String[] invalid = 
                     { 
-                        originalValue.substring( 0, originalValue.indexOf( "|" ) ) + "|foobar",
-                        "foobar" + originalValue.substring( originalValue.indexOf( "|" ) ), 
+                        "foobar", 
                         "", 
-                        originalValue + "|", 
-                        "|",
-                        originalValue.replace( "|", "||" ),
+                        originalValue + "aaaa", 
                         null,
-                        this.csrfMgrLogs.generateToken( SESSION_ID+"|a" )
+                        this.csrfMgrDefault.generateToken( SESSION_ID+"|a" )
                     };
         //@formatter:on
 
